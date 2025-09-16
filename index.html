@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sefo Cyber - Kalp Animasyonu</title>
+    <title>Sefo Cyber</title>
     <style>
         body {
             margin: 0;
+            padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -18,7 +19,7 @@
         }
         canvas {
             background: #000;
-            border: none;
+            display: block;
         }
         #text {
             color: #ff1744;
@@ -26,7 +27,7 @@
             font-weight: bold;
             margin-top: 30px;
             opacity: 0;
-            transition: opacity 0.5s;
+            letter-spacing: 2px;
         }
     </style>
 </head>
@@ -40,175 +41,144 @@
         const textDiv = document.getElementById('text');
         const fullText = "Sefo Cyber";
 
-        // Canvas boyutunu ayarla
-        function resizeCanvas() {
+        function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
         }
-        resizeCanvas();
-        window.addEventListener('resize', resizeCanvas);
+        resize();
+        window.addEventListener('resize', resize);
 
         let centerX = canvas.width / 2;
         let centerY = canvas.height / 2;
         let particles = [];
-        let lines = [];
-        let phase = 0; // 0: nokta ve patlama, 1: kalp oluşumu, 2: kalp animasyonu
-        let animationTime = 0;
+        let phase = 0; // 0: patlama, 1: kalp oluşumu, 2: animasyon
+        let time = 0;
+        let progress = 0;
         let textIndex = 0;
-        let heartProgress = 0;
 
-        // Nokta çiz
-        function drawDot() {
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
-            ctx.fillStyle = '#ff1744';
-            ctx.fill();
-        }
-
-        // Partikül sınıfı (çizgi olarak)
         class Particle {
             constructor() {
                 const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 5 + 2;
+                const speed = Math.random() * 10 + 4;
                 this.x = centerX;
                 this.y = centerY;
                 this.vx = Math.cos(angle) * speed;
                 this.vy = Math.sin(angle) * speed;
                 this.life = 1;
-                this.maxLife = 1;
-                this.length = Math.random() * 10 + 5; // Çizgi uzunluğu
+                this.decay = Math.random() * 0.02 + 0.01;
+                this.length = Math.random() * 20 + 10;
             }
 
             update() {
                 this.x += this.vx;
                 this.y += this.vy;
-                this.life -= 0.015;
+                this.life -= this.decay;
+                this.vx *= 0.98;
+                this.vy *= 0.98;
             }
 
             draw() {
-                const alpha = this.life;
+                const alpha = Math.max(0, this.life);
                 ctx.strokeStyle = `rgba(255, 23, 68, ${alpha})`;
-                ctx.lineWidth = 2;
+                ctx.lineWidth = 2 + alpha * 2;
+                ctx.lineCap = 'round';
                 ctx.beginPath();
                 ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x - this.vx * this.length, this.y - this.vy * this.length);
+                ctx.lineTo(this.x - this.vx * this.length / 10, this.y - this.vy * this.length / 10);
                 ctx.stroke();
             }
         }
 
-        // Kalp noktalarını oluştur (dalgalı için)
         function getHeartPoint(t, scale = 150, wave = 0) {
-            const heartX = 16 * Math.pow(Math.sin(t), 3);
-            const heartY = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
-            const x = centerX + heartX * scale / 16 + Math.sin(t * 5 + wave) * 5;
-            const y = centerY + heartY * scale / 13 + Math.sin(t * 3 + wave) * 3;
-            return { x, y };
+            t = t % (2 * Math.PI);
+            const x = 16 * Math.pow(Math.sin(t), 3);
+            const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
+            return {
+                x: centerX + (x * scale / 16) + Math.sin(t * 8 + wave) * 8,
+                y: centerY - (y * scale / 13) + Math.sin(t * 6 + wave) * 6
+            };
         }
 
-        // Kalp çiz (progresif)
-        function drawHeart(progress, wave = 0) {
-            ctx.strokeStyle = '#ff1744';
-            ctx.lineWidth = 3;
+        function drawHeart(p, wave = 0) {
             ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            ctx.strokeStyle = '#ff1744';
+            ctx.lineWidth = 4;
             ctx.beginPath();
             let started = false;
-            for (let t = 0; t < Math.PI * 2 * progress; t += 0.1) {
-                const point = getHeartPoint(t, 120, wave);
-                if (t / (Math.PI * 2) > progress) break;
+            for (let t = 0; t <= 2 * Math.PI * p; t += 0.05) {
+                const pt = getHeartPoint(t, 120, wave);
+                if (t / (2 * Math.PI) > p) break;
                 if (!started) {
-                    ctx.moveTo(point.x, point.y);
+                    ctx.moveTo(pt.x, pt.y);
                     started = true;
                 } else {
-                    ctx.lineTo(point.x, point.y);
+                    ctx.lineTo(pt.x, pt.y);
                 }
             }
+            if (p >= 1) ctx.closePath();
             ctx.stroke();
 
-            // Blur efekti için ek çizgiler (hafif şeffaf)
-            if (progress > 0.5) {
-                ctx.strokeStyle = `rgba(255, 23, 68, 0.3)`;
-                ctx.lineWidth = 1;
+            if (p > 0.5) {
+                ctx.strokeStyle = `rgba(255, 23, 68, 0.4)`;
+                ctx.lineWidth = 1.5;
                 ctx.beginPath();
-                for (let t = 0; t < Math.PI * 2; t += 0.2) {
-                    const point1 = getHeartPoint(t, 130, wave + 1);
-                    const point2 = getHeartPoint(t + 0.1, 110, wave - 1);
-                    ctx.moveTo(point1.x, point1.y);
-                    ctx.lineTo(point2.x, point2.y);
+                for (let i = 0; i < 30; i++) {
+                    const t1 = (i / 30) * 2 * Math.PI * p;
+                    const pt1 = getHeartPoint(t1, 130, wave + 1);
+                    const pt2 = getHeartPoint(t1 + 0.1, 110, wave - 1);
+                    ctx.moveTo(pt1.x, pt1.y);
+                    ctx.lineTo(pt2.x, pt2.y);
                 }
                 ctx.stroke();
             }
         }
 
-        // Metin animasyonu başlat
-        function startTextAnimation() {
-            textDiv.style.opacity = 1;
-            const interval = setInterval(() => {
-                if (textIndex < fullText.length) {
-                    textDiv.textContent += fullText[textIndex];
-                    textIndex++;
-                } else {
-                    clearInterval(interval);
-                }
-            }, 150);
+        function updateText() {
+            if (phase >= 1 && textIndex < fullText.length) {
+                textDiv.textContent += fullText[textIndex];
+                textDiv.style.opacity = 1;
+                textIndex++;
+            }
         }
 
-        // Ana animasyon döngüsü
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             centerX = canvas.width / 2;
             centerY = canvas.height / 2;
-            animationTime += 0.05;
+            time += 0.016;
 
             if (phase === 0) {
-                // Nokta ve patlama
-                drawDot();
-                if (particles.length < 80 && Math.random() < 0.3) {
+                if (particles.length < 300 && Math.random() < 0.6) {
                     particles.push(new Particle());
                 }
-                for (let i = particles.length - 1; i >= 0; i--) {
-                    particles[i].update();
-                    particles[i].draw();
-                    if (particles[i].life <= 0) {
-                        lines.push({ x: particles[i].x, y: particles[i].y }); // Kalp için hatırla
-                        particles.splice(i, 1);
-                    }
-                }
-                if (particles.length === 0 && lines.length > 0) {
+                particles.forEach((p, i) => {
+                    p.update();
+                    p.draw();
+                    if (p.life <= 0) particles.splice(i, 1);
+                });
+                if (particles.length === 0) {
                     phase = 1;
-                    heartProgress = 0;
-                    startTextAnimation();
+                    progress = 0;
+                    textIndex = 0;
+                    setInterval(updateText, 150);
                 }
             } else if (phase === 1) {
-                // Kalp oluşumu
-                heartProgress += 0.008;
-                const wave = Math.sin(animationTime * 2) * 0.5;
-                drawHeart(heartProgress, wave);
-
-                // Kalan çizgileri fade out et
-                for (let i = lines.length - 1; i >= 0; i--) {
-                    ctx.strokeStyle = `rgba(255, 23, 68, ${1 - heartProgress})`;
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(lines[i].x, lines[i].y);
-                    ctx.lineTo(centerX, centerY);
-                    ctx.stroke();
-                    lines.splice(i, 1);
-                }
-
-                if (heartProgress >= 1) {
+                progress += 0.01;
+                const wave = Math.sin(time * 3) * 0.5;
+                drawHeart(progress, wave);
+                if (progress >= 1) {
                     phase = 2;
                 }
-            } else if (phase === 2) {
-                // Kalp animasyonu
-                const wave = Math.sin(animationTime) * 0.3;
+            } else {
+                const wave = Math.sin(time * 2) * 0.3 + Math.cos(time * 1.5) * 0.2;
                 drawHeart(1, wave);
             }
 
             requestAnimationFrame(animate);
         }
 
-        // Başlat
         animate();
     </script>
 </body>
-</html>
+</html> 
