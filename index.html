@@ -1,184 +1,147 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sefo Cyber</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background: #000;
-            overflow: hidden;
-            font-family: 'Arial', sans-serif;
-        }
-        canvas {
-            background: #000;
-            display: block;
-        }
-        #text {
-            color: #ff1744;
-            font-size: 28px;
-            font-weight: bold;
-            margin-top: 30px;
-            opacity: 0;
-            letter-spacing: 2px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Sefo Cyber Heart</title>
+  <style>
+    body {
+      margin: 0;
+      background: black;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      height: 100vh;
+      color: red;
+      font-family: monospace;
+    }
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #text {
+      font-size: 2em;
+      margin-top: 400px;
+      white-space: pre;
+    }
+  </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-    <div id="text"></div>
+  <canvas id="canvas"></canvas>
+  <div id="text"></div>
 
-    <script>
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d');
-        const textDiv = document.getElementById('text');
-        const fullText = "Sefo Cyber";
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-        function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        resize();
-        window.addEventListener('resize', resize);
+    let centerX = canvas.width / 2;
+    let centerY = canvas.height / 2 - 50;
+    let particles = [];
+    let heartShape = [];
+    let phase = 0; // 0: nokta, 1: çizgiler, 2: kalp
 
-        let centerX = canvas.width / 2;
-        let centerY = canvas.height / 2;
-        let particles = [];
-        let phase = 0; // 0: patlama, 1: kalp oluşumu, 2: animasyon
-        let time = 0;
-        let progress = 0;
-        let textIndex = 0;
+    // Noktadan çıkan çizgiler
+    function createParticles() {
+      for (let i = 0; i < 300; i++) {
+        let angle = Math.random() * Math.PI * 2;
+        let speed = Math.random() * 3 + 2;
+        particles.push({
+          x: centerX,
+          y: centerY,
+          dx: Math.cos(angle) * speed,
+          dy: Math.sin(angle) * speed,
+          length: Math.random() * 100 + 50
+        });
+      }
+    }
 
-        class Particle {
-            constructor() {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = Math.random() * 10 + 4;
-                this.x = centerX;
-                this.y = centerY;
-                this.vx = Math.cos(angle) * speed;
-                this.vy = Math.sin(angle) * speed;
-                this.life = 1;
-                this.decay = Math.random() * 0.02 + 0.01;
-                this.length = Math.random() * 20 + 10;
-            }
+    // Kalp şekli noktaları
+    function generateHeart() {
+      heartShape = [];
+      for (let t = 0; t < Math.PI * 2; t += 0.05) {
+        let x = 16 * Math.pow(Math.sin(t), 3);
+        let y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+        heartShape.push({
+          x: centerX + x * 20,
+          y: centerY + y * 20
+        });
+      }
+    }
 
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.life -= this.decay;
-                this.vx *= 0.98;
-                this.vy *= 0.98;
-            }
+    function drawHeart(scale = 1) {
+      ctx.beginPath();
+      ctx.moveTo(heartShape[0].x, heartShape[0].y);
+      for (let p of heartShape) {
+        ctx.lineTo(
+          centerX + (p.x - centerX) * scale,
+          centerY + (p.y - centerY) * scale
+        );
+      }
+      ctx.closePath();
+      ctx.strokeStyle = "red";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
-            draw() {
-                const alpha = Math.max(0, this.life);
-                ctx.strokeStyle = `rgba(255, 23, 68, ${alpha})`;
-                ctx.lineWidth = 2 + alpha * 2;
-                ctx.lineCap = 'round';
-                ctx.beginPath();
-                ctx.moveTo(this.x, this.y);
-                ctx.lineTo(this.x - this.vx * this.length / 10, this.y - this.vy * this.length / 10);
-                ctx.stroke();
-            }
-        }
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        function getHeartPoint(t, scale = 150, wave = 0) {
-            t = t % (2 * Math.PI);
-            const x = 16 * Math.pow(Math.sin(t), 3);
-            const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
-            return {
-                x: centerX + (x * scale / 16) + Math.sin(t * 8 + wave) * 8,
-                y: centerY - (y * scale / 13) + Math.sin(t * 6 + wave) * 6
-            };
-        }
+      if (phase === 0) {
+        // Ortada nokta
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+        ctx.fillStyle = "red";
+        ctx.fill();
 
-        function drawHeart(p, wave = 0) {
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            ctx.strokeStyle = '#ff1744';
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            let started = false;
-            for (let t = 0; t <= 2 * Math.PI * p; t += 0.05) {
-                const pt = getHeartPoint(t, 120, wave);
-                if (t / (2 * Math.PI) > p) break;
-                if (!started) {
-                    ctx.moveTo(pt.x, pt.y);
-                    started = true;
-                } else {
-                    ctx.lineTo(pt.x, pt.y);
-                }
-            }
-            if (p >= 1) ctx.closePath();
-            ctx.stroke();
+        setTimeout(() => {
+          createParticles();
+          phase = 1;
+        }, 1000);
+      } else if (phase === 1) {
+        // Çizgiler saçılıyor
+        for (let p of particles) {
+          ctx.beginPath();
+          ctx.moveTo(centerX, centerY);
+          ctx.lineTo(p.x, p.y);
+          ctx.strokeStyle = "red";
+          ctx.stroke();
 
-            if (p > 0.5) {
-                ctx.strokeStyle = `rgba(255, 23, 68, 0.4)`;
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                for (let i = 0; i < 30; i++) {
-                    const t1 = (i / 30) * 2 * Math.PI * p;
-                    const pt1 = getHeartPoint(t1, 130, wave + 1);
-                    const pt2 = getHeartPoint(t1 + 0.1, 110, wave - 1);
-                    ctx.moveTo(pt1.x, pt1.y);
-                    ctx.lineTo(pt2.x, pt2.y);
-                }
-                ctx.stroke();
-            }
+          p.x += p.dx;
+          p.y += p.dy;
         }
 
-        function updateText() {
-            if (phase >= 1 && textIndex < fullText.length) {
-                textDiv.textContent += fullText[textIndex];
-                textDiv.style.opacity = 1;
-                textIndex++;
-            }
-        }
+        setTimeout(() => {
+          generateHeart();
+          phase = 2;
+        }, 2000);
+      } else if (phase === 2) {
+        // Kalp dalgalanıyor
+        let scale = 1 + Math.sin(Date.now() / 200) * 0.1;
+        drawHeart(scale);
+      }
 
-        function animate() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            centerX = canvas.width / 2;
-            centerY = canvas.height / 2;
-            time += 0.016;
+      requestAnimationFrame(animate);
+    }
 
-            if (phase === 0) {
-                if (particles.length < 300 && Math.random() < 0.6) {
-                    particles.push(new Particle());
-                }
-                particles.forEach((p, i) => {
-                    p.update();
-                    p.draw();
-                    if (p.life <= 0) particles.splice(i, 1);
-                });
-                if (particles.length === 0) {
-                    phase = 1;
-                    progress = 0;
-                    textIndex = 0;
-                    setInterval(updateText, 150);
-                }
-            } else if (phase === 1) {
-                progress += 0.01;
-                const wave = Math.sin(time * 3) * 0.5;
-                drawHeart(progress, wave);
-                if (progress >= 1) {
-                    phase = 2;
-                }
-            } else {
-                const wave = Math.sin(time * 2) * 0.3 + Math.cos(time * 1.5) * 0.2;
-                drawHeart(1, wave);
-            }
+    animate();
 
-            requestAnimationFrame(animate);
-        }
-
-        animate();
-    </script>
+    // Harf harf yazı
+    const text = "Sefo Cyber";
+    let i = 0;
+    function typeWriter() {
+      if (i < text.length) {
+        document.getElementById("text").textContent += text.charAt(i);
+        i++;
+        setTimeout(typeWriter, 200);
+      }
+    }
+    setTimeout(typeWriter, 4000); // kalp çıktıktan sonra yazmaya başla
+  </script>
 </body>
 </html>
